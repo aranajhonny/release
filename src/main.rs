@@ -34,15 +34,16 @@ fn main() -> Result<(), Error> {
 
     println!("Folder copied successfully!");
 
-    let entries = match fs::read_dir(membrane) {
+    let entries: Vec<_> = match fs::read_dir(&membrane) {
         Ok(entries) => entries,
         Err(err) => {
             eprintln!("Error reading directory: {}", err);
             exit(1);
         }
-    };
+    }
+    .collect();
 
-    for entry in entries {
+    for entry in &entries[..] {
         if let Ok(entry) = entry {
             // Check if the entry is a directory
             if let Ok(file_type) = entry.file_type() {
@@ -73,35 +74,67 @@ fn main() -> Result<(), Error> {
                         }
                     }
 
-                    let command = Command::new("mctl")
-                        .arg("update")
-                        .arg(&subfolder_name)
-                        .spawn();
+                    // let command = Command::new("mctl")
+                    //     .arg("update")
+                    //     .arg(&subfolder_name)
+                    //     .spawn();
 
-                    match command {
-                        Ok(mut child) => {
-                            if let Err(err) = child.wait() {
-                                eprintln!("Error executing command: {}", err);
+                    // match command {
+                    //     Ok(mut child) => {
+                    //         if let Err(err) = child.wait() {
+                    //             eprintln!("Error executing command: {}", err);
+                    //         }
+                    //     }
+                    //     Err(err) => {
+                    //         eprintln!("Error spawning command: {}", err);
+                    //     }
+                    // }
+
+                    // let command = Command::new("mctl")
+                    //     .arg("test")
+                    //     .arg(&subfolder_name)
+                    //     .spawn();
+
+                    // match command {
+                    //     Ok(mut child) => {
+                    //         if let Err(err) = child.wait() {
+                    //             eprintln!("Error executing command: {}", err);
+                    //         }
+                    //     }
+                    //     Err(err) => {
+                    //         eprintln!("Error spawning command: {}", err);
+                    //     }
+                    // }
+                }
+            }
+        }
+    }
+
+    // Separate iteration for running tests
+    for entry in &entries[..] {
+        if let Ok(entry) = entry {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_dir() {
+                    let subfolder_name = entry.file_name();
+
+                    let package_json_path = entry.path().join("package.json");
+                    if package_json_path.exists() {
+                        // Run the `mctl test` command in the subfolder
+                        let mctl_test_command = Command::new("mctl")
+                            .arg("test")
+                            .arg(subfolder_name)
+                            .current_dir(&entry.path())
+                            .spawn();
+
+                        match mctl_test_command {
+                            Ok(mut child) => {
+                                if let Err(err) = child.wait() {
+                                    eprintln!("Error executing command: {}", err);
+                                }
                             }
-                        }
-                        Err(err) => {
-                            eprintln!("Error spawning command: {}", err);
-                        }
-                    }
-
-                    let command = Command::new("mctl")
-                        .arg("test")
-                        .arg(&subfolder_name)
-                        .spawn();
-
-                    match command {
-                        Ok(mut child) => {
-                            if let Err(err) = child.wait() {
-                                eprintln!("Error executing command: {}", err);
+                            Err(err) => {
+                                eprintln!("Error spawning command: {}", err);
                             }
-                        }
-                        Err(err) => {
-                            eprintln!("Error spawning command: {}", err);
                         }
                     }
                 }
