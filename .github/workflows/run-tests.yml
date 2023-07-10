@@ -20,6 +20,11 @@ jobs:
           unzip -d mctl "$(find . -name 'mctl-*-linux-x86.zip' -print -quit)"
           mv mctl/mctl /usr/local/bin/mctl
 
+      - name: Create config.
+        env:
+          MCTL_TOKEN: ${{ secrets.MCTL_TOKEN }}
+        run: bash config.sh
+
       - name: Checkout code
         uses: actions/checkout@v2
 
