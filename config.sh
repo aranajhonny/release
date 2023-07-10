@@ -1,4 +1,5 @@
 #!/bin/bash
+mkdir -p ~/membrane
 cat > ~/membrane/.config <<EOF
 {
   "access_token": "$MCTL_TOKEN",
