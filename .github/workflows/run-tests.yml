@@ -28,13 +28,13 @@ jobs:
           MCTL_TOKEN: ${{ secrets.MCTL_TOKEN }}
         run: bash config.sh
 
-      - name: Release build
+      - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --all-features
 
-      - name: Run binary
+      - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: run

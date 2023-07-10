@@ -56,6 +56,23 @@ fn main() -> Result<(), Error> {
                         }
                     };
 
+                    let package_json_path = entry.path().join("package.json");
+                    if package_json_path.exists() {
+                        // Run the `yarn` command in the subfolder
+                        let command = Command::new("yarn").current_dir(entry.path()).spawn();
+                        println!("Running yarn in {}", subfolder_name);
+                        match command {
+                            Ok(mut child) => {
+                                if let Err(err) = child.wait() {
+                                    eprintln!("Error executing command: {}", err);
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("Error spawning command: {}", err);
+                            }
+                        }
+                    }
+
                     let command = Command::new("mctl")
                         .arg("update")
                         .arg(&subfolder_name)
