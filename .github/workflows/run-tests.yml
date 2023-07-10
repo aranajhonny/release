@@ -1,0 +1,36 @@
+name: Download
+
+on: push
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download mctl release
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: "aranajhonny/test"
+          latest: true
+          fileName: "*"
+          token: ${{ secrets.GITHUB }}
+
+      - name: Install mctl
+        run: |
+          unzip -d mctl "$(find . -name 'mctl-*-linux-x86.zip' -print -quit)"
+          mv mctl/mctl /usr/local/bin/mctl
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Release build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+
+      - name: Run binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --release
