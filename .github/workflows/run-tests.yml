@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        
       - name: Download mctl release
         uses: robinraju/release-downloader@v1.8
         with:
@@ -24,9 +27,6 @@ jobs:
         env:
           MCTL_TOKEN: ${{ secrets.MCTL_TOKEN }}
         run: bash config.sh
-
-      - name: Checkout code
-        uses: actions/checkout@v2
 
       - name: Release build
         uses: actions-rs/cargo@v1
