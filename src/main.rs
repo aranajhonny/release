@@ -73,21 +73,21 @@ fn main() -> Result<(), Error> {
                         }
                     }
 
-                    let command = Command::new("mctl")
-                        .arg("update")
-                        .arg(&subfolder_name)
-                        .spawn();
+                    // let command = Command::new("mctl")
+                    //     .arg("update")
+                    //     .arg(&subfolder_name)
+                    //     .spawn();
 
-                    match command {
-                        Ok(mut child) => {
-                            if let Err(err) = child.wait() {
-                                eprintln!("Error executing command: {}", err);
-                            }
-                        }
-                        Err(err) => {
-                            eprintln!("Error spawning command: {}", err);
-                        }
-                    }
+                    // match command {
+                    //     Ok(mut child) => {
+                    //         if let Err(err) = child.wait() {
+                    //             eprintln!("Error executing command: {}", err);
+                    //         }
+                    //     }
+                    //     Err(err) => {
+                    //         eprintln!("Error spawning command: {}", err);
+                    //     }
+                    // }
 
                     // let command = Command::new("mctl")
                     //     .arg("test")
