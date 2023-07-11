@@ -5,6 +5,9 @@ use std::path::Path;
 use std::process::{exit, Command};
 
 fn main() -> Result<(), Error> {
+    
+    setup_http()?;
+
     let url = "https://github.com/membrane-io/directory.git";
     let repo = match Repository::clone(url, "directory") {
         Ok(repo) => repo,
@@ -16,7 +19,7 @@ fn main() -> Result<(), Error> {
         println!("{}", sub.name().unwrap());
     }
 
-    let membrane = dirs::home_dir()
+    let membrane_dir = dirs::home_dir()
         .expect("Failed to get home directory")
         .join("membrane");
 
@@ -24,17 +27,13 @@ fn main() -> Result<(), Error> {
         .expect("Failed to get current directory")
         .join("directory");
 
-    let destination_folder = dirs::home_dir()
-        .expect("Failed to get home directory")
-        .join("membrane");
-
-    if let Err(err) = copy_folder(&source_folder, &destination_folder) {
+    if let Err(err) = copy_folder(&source_folder, &membrane_dir) {
         panic!("Failed to copy folder: {}", err);
     }
 
     println!("Folder copied successfully!");
 
-    let entries: Vec<_> = match fs::read_dir(&membrane) {
+    let entries: Vec<_> = match fs::read_dir(&membrane_dir) {
         Ok(entries) => entries,
         Err(err) => {
             eprintln!("Error reading directory: {}", err);
@@ -49,7 +48,7 @@ fn main() -> Result<(), Error> {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_dir() {
                     // Extract the subfolder name
-                    let subfolder_name = match entry.file_name().into_string() {
+                    let program = match entry.file_name().into_string() {
                         Ok(name) => name,
                         Err(_) => {
                             eprintln!("Error extracting folder name");
@@ -60,51 +59,10 @@ fn main() -> Result<(), Error> {
                     let package_json_path = entry.path().join("package.json");
                     if package_json_path.exists() {
                         // Run the `yarn` command in the subfolder
-                        let command = Command::new("yarn").current_dir(entry.path()).spawn();
-                        println!("Running yarn in {}", subfolder_name);
-                        match command {
-                            Ok(mut child) => {
-                                if let Err(err) = child.wait() {
-                                    eprintln!("Error executing command: {}", err);
-                                }
-                            }
-                            Err(err) => {
-                                eprintln!("Error spawning command: {}", err);
-                            }
-                        }
+                        yarn_install(&program)
                     }
-
-                    // let command = Command::new("mctl")
-                    //     .arg("update")
-                    //     .arg(&subfolder_name)
-                    //     .spawn();
-
-                    // match command {
-                    //     Ok(mut child) => {
-                    //         if let Err(err) = child.wait() {
-                    //             eprintln!("Error executing command: {}", err);
-                    //         }
-                    //     }
-                    //     Err(err) => {
-                    //         eprintln!("Error spawning command: {}", err);
-                    //     }
-                    // }
-
-                    // let command = Command::new("mctl")
-                    //     .arg("test")
-                    //     .arg(&subfolder_name)
-                    //     .spawn();
-
-                    // match command {
-                    //     Ok(mut child) => {
-                    //         if let Err(err) = child.wait() {
-                    //             eprintln!("Error executing command: {}", err);
-                    //         }
-                    //     }
-                    //     Err(err) => {
-                    //         eprintln!("Error spawning command: {}", err);
-                    //     }
-                    // }
+                    mctl_update(&program);
+                    mctl_test(&program);
                 }
             }
         }
@@ -115,14 +73,14 @@ fn main() -> Result<(), Error> {
         if let Ok(entry) = entry {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_dir() {
-                    let subfolder_name = entry.file_name();
+                    let program = entry.file_name();
 
                     let package_json_path = entry.path().join("package.json");
                     if package_json_path.exists() {
                         // Run the `mctl test` command in the subfolder
                         let mctl_test_command = Command::new("mctl")
                             .arg("test")
-                            .arg(subfolder_name)
+                            .arg(program)
                             .current_dir(&entry.path())
                             .spawn();
 
@@ -143,6 +101,82 @@ fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn setup_http() -> Result<(), Error> {
+    let url = "https://github.com/juancampa/membrane-http-program.git";
+
+    let membrane_dir = dirs::home_dir()
+    .expect("Failed to get home directory")
+    .join("membrane")
+    .join("http");
+  
+    match Repository::clone(url, "http") {
+        Ok(repo) => repo,
+        Err(e) => panic!("failed to clone: {}", e),
+    };
+
+    let source_folder = env::current_dir()
+        .expect("Failed to get current directory")
+        .join("http");
+
+    if let Err(err) = copy_folder(&source_folder, &membrane_dir) {
+        panic!("Failed to copy folder: {}", err);
+    }
+
+    mctl_update("http");
+    Ok(())
+}
+
+fn mctl_update(program: &str) {
+    let command = Command::new("mctl").arg("update").arg(program).spawn();
+
+    match command {
+        Ok(mut child) => {
+            if let Err(err) = child.wait() {
+                eprintln!("Error executing command: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Error spawning command: {}", err);
+            exit(1);
+        }
+    }
+}
+
+fn mctl_test(program: &str) {
+    let command = Command::new("mctl").arg("test").arg(program).spawn();
+
+    match command {
+        Ok(mut child) => {
+            if let Err(err) = child.wait() {
+                eprintln!("Error executing command: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Error spawning command: {}", err);
+            exit(1);
+        }
+    }
+}
+
+fn yarn_install(program: &str) {
+    let subfolder_path = format!("./{}", program);
+    let command_yarn = Command::new("yarn").current_dir(subfolder_path).spawn();
+
+    println!("Running yarn in {}", program);
+
+    match command_yarn {
+        Ok(mut child) => {
+            if let Err(err) = child.wait() {
+                eprintln!("Error executing yarn command: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Error spawning yarn command: {}", err);
+            exit(1);
+        }
+    }
 }
 
 fn copy_folder(source: &Path, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
