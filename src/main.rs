@@ -1,11 +1,15 @@
 use git2::{Error, Repository};
-use std::env;
-use std::fs;
-use std::path::Path;
-use std::process::{exit, Command};
+use serde::Serialize;
+use std::{env, fs, io, path::Path, process::{exit, Command}, fs::File};
+use std::io::Write;
+
+#[derive(Serialize)]
+struct TestResult {
+    program: String,
+    success: bool,
+}
 
 fn main() -> Result<(), Error> {
-    
     setup_http()?;
 
     let url = "https://github.com/membrane-io/directory.git";
@@ -27,9 +31,7 @@ fn main() -> Result<(), Error> {
         .expect("Failed to get current directory")
         .join("directory");
 
-    if let Err(err) = copy_folder(&source_folder, &membrane_dir) {
-        panic!("Failed to copy folder: {}", err);
-    }
+    let _ = copy_folder(&source_folder, &membrane_dir);
 
     println!("Folder copied successfully!");
 
@@ -59,32 +61,9 @@ fn main() -> Result<(), Error> {
                     let package_json_path = entry.path().join("package.json");
                     if package_json_path.exists() {
                         // Run the `yarn` command in the subfolder
-                        yarn_install(&program)
-                    }
-                    mctl_update(&program);
-                    mctl_test(&program);
-                }
-            }
-        }
-    }
-
-    // Separate iteration for running tests
-    for entry in &entries[..] {
-        if let Ok(entry) = entry {
-            if let Ok(file_type) = entry.file_type() {
-                if file_type.is_dir() {
-                    let program = entry.file_name();
-
-                    let package_json_path = entry.path().join("package.json");
-                    if package_json_path.exists() {
-                        // Run the `mctl test` command in the subfolder
-                        let mctl_test_command = Command::new("mctl")
-                            .arg("test")
-                            .arg(program)
-                            .current_dir(&entry.path())
-                            .spawn();
-
-                        match mctl_test_command {
+                        let command = Command::new("yarn").current_dir(entry.path()).spawn();
+                        println!("Running yarn in {}", program);
+                        match command {
                             Ok(mut child) => {
                                 if let Err(err) = child.wait() {
                                     eprintln!("Error executing command: {}", err);
@@ -95,9 +74,38 @@ fn main() -> Result<(), Error> {
                             }
                         }
                     }
+                    mctl_update(&program);
                 }
             }
         }
+    }
+    let mut all_results = Vec::new();
+
+    // Separate iteration for running tests
+    for entry in &entries[..] {
+        if let Ok(entry) = entry {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_dir() {
+                    let program = entry.file_name();
+                    let result = mctl_test(program.to_str().unwrap());
+                    all_results.push(result);
+                }
+            }
+        }
+    }
+
+    // Save all test results to JSON
+    if let Ok(json_data) = serde_json::to_string_pretty(&all_results) {
+        let file_path = "all_results.json";
+        if let Ok(mut file) = File::create(file_path) {
+            if let Err(err) = file.write_all(json_data.as_bytes()) {
+                eprintln!("Error writing test results to file: {}", err);
+            }
+        } else {
+            eprintln!("Error creating file for test results");
+        }
+    } else {
+        eprintln!("Error serializing test results to JSON");
     }
 
     Ok(())
@@ -107,10 +115,10 @@ fn setup_http() -> Result<(), Error> {
     let url = "https://github.com/juancampa/membrane-http-program.git";
 
     let membrane_dir = dirs::home_dir()
-    .expect("Failed to get home directory")
-    .join("membrane")
-    .join("http");
-  
+        .expect("Failed to get home directory")
+        .join("membrane")
+        .join("http");
+
     match Repository::clone(url, "http") {
         Ok(repo) => repo,
         Err(e) => panic!("failed to clone: {}", e),
@@ -120,9 +128,7 @@ fn setup_http() -> Result<(), Error> {
         .expect("Failed to get current directory")
         .join("http");
 
-    if let Err(err) = copy_folder(&source_folder, &membrane_dir) {
-        panic!("Failed to copy folder: {}", err);
-    }
+    let _ = copy_folder(&source_folder, &membrane_dir);
 
     mctl_update("http");
     Ok(())
@@ -133,61 +139,63 @@ fn mctl_update(program: &str) {
 
     match command {
         Ok(mut child) => {
-            if let Err(err) = child.wait() {
-                eprintln!("Error executing command: {}", err);
+            println!("Updating {:?}", program);
+
+            let exit_status = child
+                .wait()
+                .expect("Failed to wait on child process for test");
+
+            if exit_status.success() {
+                // successful execution
+            } else {
+                // unsuccessful execution
+                // exit(1);
             }
         }
-        Err(err) => {
-            eprintln!("Error spawning command: {}", err);
+        Err(e) => {
+            println!("Failed to execute command: {}", e);
             exit(1);
         }
     }
 }
 
-fn mctl_test(program: &str) {
+fn mctl_test(program: &str) -> TestResult {
     let command = Command::new("mctl").arg("test").arg(program).spawn();
 
     match command {
         Ok(mut child) => {
-            if let Err(err) = child.wait() {
-                eprintln!("Error executing command: {}", err);
-            }
+            println!("Running test in {:?}", program);
+
+            let exit_status = child
+                .wait()
+                .expect("Failed to wait on child process for test");
+
+            let success = exit_status.success();
+            let test_result = TestResult {
+                program: program.to_string(),
+                success,
+            };
+
+            test_result
         }
-        Err(err) => {
-            eprintln!("Error spawning command: {}", err);
+        Err(e) => {
+            println!("Failed to execute command: {}", e);
             exit(1);
         }
     }
 }
 
-fn yarn_install(program: &str) {
-    let subfolder_path = format!("./{}", program);
-    let command_yarn = Command::new("yarn").current_dir(subfolder_path).spawn();
-
-    println!("Running yarn in {}", program);
-
-    match command_yarn {
-        Ok(mut child) => {
-            if let Err(err) = child.wait() {
-                eprintln!("Error executing yarn command: {}", err);
-            }
-        }
-        Err(err) => {
-            eprintln!("Error spawning yarn command: {}", err);
-            exit(1);
-        }
-    }
-}
-
-fn copy_folder(source: &Path, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn copy_folder(source: &Path, destination: &Path) -> io::Result<()> {
     if !destination.exists() {
-        fs::create_dir_all(&destination)?;
+        fs::create_dir_all(destination)?;
     }
 
     for entry in fs::read_dir(source)? {
         let entry = entry?;
         let entry_path = entry.path();
-        let destination_path = destination.join(entry.file_name());
+        let file_name = entry.file_name();
+
+        let destination_path = destination.join(file_name);
 
         if entry_path.is_dir() {
             copy_folder(&entry_path, &destination_path)?;
