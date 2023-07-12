@@ -1,5 +1,7 @@
 use git2::{Error, Repository};
+use reqwest::{Client, Error as HttpError, StatusCode};
 use serde::Serialize;
+use serde_json::json;
 use std::io::Write;
 use std::{
     env, fs,
@@ -15,7 +17,8 @@ struct TestResult {
     success: bool,
 }
 
-fn main() -> Result<(), Error> {
+#[tokio::main]
+async fn main() -> Result<(), Error> {
     setup_http()?;
 
     let url = "https://github.com/membrane-io/directory.git";
@@ -94,6 +97,19 @@ fn main() -> Result<(), Error> {
                 if file_type.is_dir() {
                     let program = entry.file_name();
                     let result = mctl_test(program.to_str().unwrap());
+                    if !result.success {
+                        let message = format!("❌ Test failed for {:?}", program);
+                        if let Err(err) = send_message(&message).await {
+                            let err_message = format!("HTTP Error: {}", err);
+                            return Err(Error::from_str(&err_message));
+                        }
+                    }else {
+                        let message = format!("🎉 Test passed for {:?}", program);
+                        if let Err(err) = send_message(&message).await {
+                            let err_message = format!("HTTP Error: {}", err);
+                            return Err(Error::from_str(&err_message));
+                        }
+                    }
                     all_results.push(result);
                 }
             }
@@ -210,5 +226,30 @@ fn copy_folder(source: &Path, destination: &Path) -> io::Result<()> {
         }
     }
 
+    Ok(())
+}
+async fn send_message(message: &str) -> Result<(), HttpError> {
+    let client = Client::new();
+    // TODO: replace with webhook URL
+    let url = "https://discord.com/api/webhooks/1128740471552880640/tExzZQ1LmRDWnP_qrTDVgBIzwZ5ewpMmQYL8FcU6OY6tuB74HMe5BV5mXVAJ7oEIMdMY";
+
+    let params = json!({
+        "username": "Test Bot",
+        "content": message,
+    });
+
+    let response = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .json(&params)
+        .send()
+        .await?;
+
+    let status_code = response.status().as_u16();
+    if status_code > 299 {
+        println!("Error sending message: {:?}", response);
+    } else {
+        println!("Message sent successfully");
+    }
     Ok(())
 }
