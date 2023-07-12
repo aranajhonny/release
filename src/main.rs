@@ -1,7 +1,13 @@
 use git2::{Error, Repository};
 use serde::Serialize;
-use std::{env, fs, io, path::Path, process::{exit, Command}, fs::File};
 use std::io::Write;
+use std::{
+    env, fs,
+    fs::File,
+    io,
+    path::Path,
+    process::{exit, Command},
+};
 
 #[derive(Serialize)]
 struct TestResult {
