@@ -36,6 +36,8 @@ jobs:
 
       - name: Run tests
         uses: actions-rs/cargo@v1
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
           command: run
           args: --release
