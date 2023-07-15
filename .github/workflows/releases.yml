@@ -1,0 +1,36 @@
+name: Download
+
+on: push
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos-x86]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Determine version
+        with:
+          repository: aranajhonny/test
+        id: version
+        run: |
+          cd mctl
+          echo "VERSION=$(cat Cargo.toml | grep -E '^version *= *".*' | awk '{print $3}' | tr -d '"')" >> "$GITHUB_OUTPUT"
+
+      - name: Download artifact
+        uses: bettermarks/action-artifact-download@0.3.0
+        with:
+          repo: aranajhonny/test
+          token: ${{ secrets.GITHUB }}
+          artifact_name: mctl-${{steps.version.outputs.VERSION}}-linux-x86.zip
+          wait_seconds: 60
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Membrane mctl"
+          tag_name: ${{steps.version.outputs.VERSION}}
+          fail_on_unmatched_files: false
+          # create a personal access token
+          # with permissions to create releases in the other repo
+          token: ${{ secrets.GITHUB }}
+          files: mctl-${{steps.version.outputs.VERSION}}-linux-x86.zip

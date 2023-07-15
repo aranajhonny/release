@@ -74,16 +74,16 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Order the entries so that http is first
     entries.sort_by(|a, b| {
-        if a == "http" {
+        if a == "todo" {
             std::cmp::Ordering::Less
-        } else if b == "http" {
+        } else if b == "todo" {
             std::cmp::Ordering::Greater
         } else {
             a.cmp(b)
         }
     });
 
-    let mut installed_programs: HashSet<String> = HashSet::new();
+    let mut ordered_programs: HashSet<String> = HashSet::new();
     let mut programs: Vec<Program> = Vec::new();
 
     // Get all the dependencies for each program
@@ -95,7 +95,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Check all the dependencies and install them recursively
     for program in &programs {
-        check_dependencies(&programs, program, &mut installed_programs).await;
+        check_dependencies(&programs, program, &mut ordered_programs).await;
     }
 
     // let mut all_results: Vec<TestResult> = Vec::new();
@@ -120,6 +120,7 @@ async fn main() -> Result<(), anyhow::Error> {
 // if has a package.json file, use yarn
 // then ren the mctl test command for the program
 async fn run_program(program: &Program) -> Result<(), anyhow::Error> {
+    println!("Running program: {:?}", program.name);
     if program.npm_dependencies {
         yarn_install(&program.name);
     }
@@ -145,20 +146,19 @@ async fn run_program(program: &Program) -> Result<(), anyhow::Error> {
 async fn check_dependencies(
     programs: &[Program],
     program: &Program,
-    installed_programs: &mut HashSet<String>,
+    ordered_programs: &mut HashSet<String>,
 ) {
     if !program.dependencies.is_empty() {
         for dependency_name in &program.dependencies {
             let dependency = programs.iter().find(|p| p.name == *dependency_name);
             if let Some(dependency) = dependency {
-                check_dependencies(programs, dependency, installed_programs).await;
+                check_dependencies(programs, dependency, ordered_programs).await;
             } else {
                 println!("Dependency not found: {}", dependency_name);
             }
         }
     }
-
-    if installed_programs.insert(program.name.clone()) {
+    if ordered_programs.insert(program.name.clone()) {
         let _ = run_program(&program).await;
     }
 }
