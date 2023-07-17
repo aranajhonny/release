@@ -1,0 +1,90 @@
+[
+  {
+    "program": "http",
+    "success": false
+  },
+  {
+    "program": "github",
+    "success": false
+  },
+  {
+    "program": "openai",
+    "success": false
+  },
+  {
+    "program": "pinecone",
+    "success": false
+  },
+  {
+    "program": "todo",
+    "success": true
+  },
+  {
+    "program": "airtable",
+    "success": false
+  },
+  {
+    "program": "discord",
+    "success": false
+  },
+  {
+    "program": "drawer",
+    "success": false
+  },
+  {
+    "program": "email",
+    "success": false
+  },
+  {
+    "program": "google-calendar",
+    "success": false
+  },
+  {
+    "program": "google-docs",
+    "success": false
+  },
+  {
+    "program": "hn",
+    "success": false
+  },
+  {
+    "program": "html",
+    "success": false
+  },
+  {
+    "program": "mailchimp",
+    "success": false
+  },
+  {
+    "program": "notion",
+    "success": false
+  },
+  {
+    "program": "slack",
+    "success": false
+  },
+  {
+    "program": "slack-bot",
+    "success": false
+  },
+  {
+    "program": "sms",
+    "success": false
+  },
+  {
+    "program": "space-traders",
+    "success": false
+  },
+  {
+    "program": "twitter",
+    "success": false
+  },
+  {
+    "program": "vercel",
+    "success": false
+  },
+  {
+    "program": "weather",
+    "success": false
+  }
+]

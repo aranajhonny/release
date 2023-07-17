@@ -93,25 +93,25 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
 
+    let mut results: Vec<TestResult> = Vec::new();
     // Check all the dependencies and install them recursively
     for program in &programs {
-        check_dependencies(&programs, program, &mut ordered_programs).await;
+        check_dependencies(&programs, program, &mut ordered_programs, &mut results).await;
     }
 
-    // let mut all_results: Vec<TestResult> = Vec::new();
-    // // Save all test results to JSON
-    // if let Ok(json_data) = serde_json::to_string_pretty(&all_results) {
-    //     let file_path = "all_results.json";
-    //     if let Ok(mut file) = File::create(file_path) {
-    //         if let Err(err) = file.write_all(json_data.as_bytes()) {
-    //             eprintln!("Error writing test results to file: {}", err);
-    //         }
-    //     } else {
-    //         eprintln!("Error creating file for test results");
-    //     }
-    // } else {
-    //     eprintln!("Error serializing test results to JSON");
-    // }
+    // Save all test results to JSON
+    if let Ok(json_data) = serde_json::to_string_pretty(&results) {
+        let file_path = "results.json";
+        if let Ok(mut file) = File::create(file_path) {
+            if let Err(err) = file.write_all(json_data.as_bytes()) {
+                eprintln!("Error writing test results to file: {}", err);
+            }
+        } else {
+            eprintln!("Error creating file for test results");
+        }
+    } else {
+        eprintln!("Error serializing test results to JSON");
+    }
 
     Ok(())
 }
@@ -119,13 +119,19 @@ async fn main() -> Result<(), anyhow::Error> {
 // execute a update command for a program in the membrane directory
 // if has a package.json file, use yarn
 // then ren the mctl test command for the program
-async fn run_program(program: &Program) -> Result<(), anyhow::Error> {
+async fn run_program(program: &Program, results: &mut Vec<TestResult>) -> Result<(), anyhow::Error> {
     println!("Running program: {:?}", program.name);
     if program.npm_dependencies {
         yarn_install(&program.name);
     }
     mctl_update(&program.name);
     let result = mctl_test(&program.name);
+
+    results.push(TestResult {
+        program: program.name.clone(),
+        success: result.success,
+    });
+    
     if !result.success {
         let message = format!("❌ Test failed for {:?}", program);
         if let Err(err) = send_message(&message).await {
@@ -147,19 +153,20 @@ async fn check_dependencies(
     programs: &[Program],
     program: &Program,
     ordered_programs: &mut HashSet<String>,
+    results: &mut Vec<TestResult>,
 ) {
     if !program.dependencies.is_empty() {
         for dependency_name in &program.dependencies {
             let dependency = programs.iter().find(|p| p.name == *dependency_name);
             if let Some(dependency) = dependency {
-                check_dependencies(programs, dependency, ordered_programs).await;
+                check_dependencies(programs, dependency, ordered_programs, results).await;
             } else {
                 println!("Dependency not found: {}", dependency_name);
             }
         }
     }
     if ordered_programs.insert(program.name.clone()) {
-        let _ = run_program(&program).await;
+        let _ = run_program(&program, results).await;
     }
 }
 
